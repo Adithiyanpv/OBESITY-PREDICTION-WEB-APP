@@ -63,6 +63,7 @@ def prediction(features):
                     'Gender', 'Consumption_Alc', 'FCOHCF', 'COFBM', 'MTRANS']
     arr_df = pd.DataFrame([features], columns=column_names)
     numerical_columns = ['Age', 'Height', 'Weight', 'FCOV', 'CH2O', 'Physical_Activity_F', 'Time_using_techno_D']
+    
     try:
         arr_df[numerical_columns] = sc.transform(arr_df[numerical_columns])
     except Exception as e:
@@ -77,10 +78,6 @@ def prediction(features):
         return "Error in prediction"
     
     return predicted_category
-
-@app.route('/')
-def home():
-    return render_template('index.html')
 
 @app.route('/predict', methods=['GET', 'POST'])
 def predict():
@@ -126,20 +123,27 @@ def predict():
         ]
 
         predicted_category = prediction(features)
+        if "Error" in predicted_category:
+            return render_template('predict.html', error="An error occurred during prediction.")
 
         # Save data and prediction to the database with timestamp
-        user_data = UserData(
-            age=age, height=height, weight=weight, fcov=fcov, ch2o=ch2o,
-            physical_activity=physical_activity, time_using_techno=time_using_techno,
-            gender=gender, consumption_alc=consumption_alc, fcohcf=fcohcf,
-            cofbm=cofbm, mtrans=mtrans, predicted_category=predicted_category
-        )
-        db.session.add(user_data)
-        db.session.commit()
-
+        try:
+            user_data = UserData(
+                age=age, height=height, weight=weight, fcov=fcov, ch2o=ch2o,
+                physical_activity=physical_activity, time_using_techno=time_using_techno,
+                gender=gender, consumption_alc=consumption_alc, fcohcf=fcohcf,
+                cofbm=cofbm, mtrans=mtrans, predicted_category=predicted_category
+            )
+            db.session.add(user_data)
+            db.session.commit()
+        except Exception as e:
+            logging.error(f"Error saving data to the database: {e}")
+            return render_template('predict.html', error="Error saving your data.")
+        
         return render_template('result.html', predicted_category=predicted_category)
 
     return render_template('predict.html')
+
 
 @app.route('/users')
 def users():
